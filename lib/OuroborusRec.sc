@@ -1,4 +1,4 @@
-Ouroborus {
+OuroborusRec {
 	var server;
 	var busOut;
 	var oscTr;
@@ -7,18 +7,20 @@ Ouroborus {
 	var valId;
 	var valLoopFade=0.2;
 	var valLoopSeconds=4;
-	var <bufLoop;
+	var valStartTime=0;
 	var fnXFader;
+	var <fnAction;
 
 	*new {
-		arg argServer,argBusOut;
-		^super.new.init(argServer,argBusOut);
+		arg argServer,argBusOut,argAction;
+		^super.new.init(argServer,argBusOut,argAction);
 	}
 
 	init {
-		arg argServer,argBusOut;
+		arg argServer,argBusOut,argAction;
 		server=argServer;
 		busOut=argBusOut;
+		fnAction=argAction;
 		valId=1000000.rand;
 
 		SynthDef("defRecordTrigger",{
@@ -52,7 +54,7 @@ Ouroborus {
 			if(frames>inBuffer.numFrames, {
 				"xfader: crossfade duration longer than half buffer - clipped.".warn;
 			});
-			frames= frames.min(inBuffer.numFrames.div(2)).asInteger;
+			frames= frames.min(inBuffer.numFrames.div(2)).round.asInteger;
 			Buffer.alloc(inBuffer.server, inBuffer.numFrames-frames, inBuffer.numChannels, {|outBuffer|
 				inBuffer.loadToFloatArray(action:{|arr|
 					var interleavedFrames= frames*inBuffer.numChannels;
@@ -74,6 +76,7 @@ Ouroborus {
 			if (msg[2].asInteger==valId.asInteger,{
 				if (msg[3].asInteger==1,{
 					"recording start from prime".postln;
+					valStartTime=SystemClock.seconds;
 					if (synPrime.notNil,{
 						synPrime.free;
 						synPrime=nil;
@@ -92,10 +95,10 @@ Ouroborus {
 		arg seconds,xfade;
 		valLoopSeconds=seconds;
 		valLoopFade=xfade;
-		if (bufLoop.notNil,{bufLoop.free;});
 		Buffer.alloc(server,server.sampleRate*(seconds+valLoopFade),2,{
 			arg buf1;
 			("recording "+(valLoopSeconds+valLoopFade)+"seconds").postln;
+			valStartTime=SystemClock.seconds;
 			synRecord=Synth("defRecordLoop",[\bufnum,buf1,\t_trig,1,\run,1,\loop,0]).onFree({
 				arg syn;
 				var buf2;
@@ -104,11 +107,11 @@ Ouroborus {
 					("doing crossfade").postln;
 					fnXFader.value(buf1,valLoopFade,-2,action:{
 						arg buf2;
-						("done with buffer"+buf1+"and made"+buf2).postln;
-						bufLoop=buf2;
+						("recStart done with buffer"+buf1+"and made"+buf2).postln;
+						fnAction.value(buf2,valStartTime);
 					});
 				},{
-					bufLoop=buf1;
+					fnAction.value(buf1,valStartTime);
 				});
 			});
 			NodeWatcher.register(synRecord);
@@ -120,7 +123,6 @@ Ouroborus {
 		arg seconds,xfade;
 		valLoopFade=xfade;
 		valLoopSeconds=seconds;
-		if (bufLoop.notNil,{bufLoop.free;});
 		Buffer.alloc(server,server.sampleRate*(seconds+valLoopFade),2,{
 			arg buf1;
 			"recording primed".postln;
@@ -128,14 +130,13 @@ Ouroborus {
 				arg syn;
 				["recorded",buf1].postln;
 				if (valLoopFade>0,{
-					("doing crossfade").postln;
 					fnXFader.value(buf1,valLoopFade,-2,action:{
 						arg buf2;
 						("done with buffer"+buf1+"and made"+buf2).postln;
-						bufLoop=buf2;
+						fnAction.value(buf2,valStartTime);
 					});
 				},{
-					bufLoop=buf1;
+					fnAction.value(buf1,valStartTime);
 				});
 			});
 			NodeWatcher.register(synRecord);
@@ -147,6 +148,5 @@ Ouroborus {
 		oscTr.free;
 		synPrime.free;
 		synRecord.free;
-		bufLoop.free;
 	}
 }
