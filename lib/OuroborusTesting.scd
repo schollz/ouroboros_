@@ -4,10 +4,18 @@ s.waitForBoot{
 	"ready".postln;
 	o=Ouroborus.new(Server.default,0);
 	s.sync;
-	o.recStart(1,60/90*4,0.001);
+	o.recPrime(1,60/90*4,0.001);
 })
+o.setParam(1,"rate",1);
+o.setParam(1,"bpm_target",90);
+o.setParam(1,"bpm_sample",90);
+
+o.recPrime(2,60/90*8,0.2);
+o.recPrime(4,60/90*8,0.2);
+o.recPrime(3,60/90*16,0.2);
+o.setParam(3,"amp",-1);
+
 SystemClock.seconds
-o.setParam(2,"amp",10);
 o.recPrime(2,2,0.2);
 o.recPrime(3,8,0.2);
 o.setParam(3,"timestretch",0)

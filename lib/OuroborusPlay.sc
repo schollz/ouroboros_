@@ -87,20 +87,18 @@ OuroborusPlay {
 	}
 
 	playNew {
-		arg buf,samplePos,sampleStart,sampleEnd;
+		arg buf,busMainLine,synMainline;
 		bufCurrent=buf.bufnum;
 		if (synPlay.notNil,{
 			synPlay.set(\t_kill,1);
 		});
-		params.put(\sampleStart,sampleStart);
-		params.put(\sampleEnd,sampleEnd);
-		params.put(\samplePos,samplePos);
-		synPlay=Synth.new("defOuroborusPlay",[
+		synPlay=Synth.after(synMainline,"defOuroborusPlay",[
 			\bufnum,bufCurrent,
+			\samplePosBus,busMainLine.index.postln,
 			\ampBus, mapBus.at(\amp),
-			\sampleStart,sampleStart,
-			\sampleEnd, sampleEnd,
-			\samplePos, samplePos,
+			\sampleStart,0,
+			\sampleEnd, 1,
+			\samplePos, 0,
 			\latencyBus, mapBus.at(\latency),
 			\rateBus, mapBus.at(\rate),
 			\bpm_sampleBus, mapBus.at(\bpm_sample),

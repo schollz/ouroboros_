@@ -1,7 +1,9 @@
 Ouroborus {
 	var server;
 	var busOut;
+	var busMainline;
 	var synRec;
+	var synMainline;
 	var <mapPlay;
 	var recID;
 
@@ -18,7 +20,7 @@ Ouroborus {
 		mapPlay=Dictionary.new();
 
 		SynthDef("defOuroborusPlay",{
-			arg out=0, bufnum, ampBus, t_trig=0, t_kill=0, loop=1,
+			arg out=0, bufnum, samplePosBus=1.neg, ampBus, t_trig=0, t_kill=0, loop=1,
 			sampleStart=0,sampleEnd=1,samplePos=0, latencyBus=0,
 			rateBus,bpm_sampleBus=1,bpm_targetBus=1,
 			bitcrushBus,bitcrush_bitsBus,bitcrush_rateBus,
@@ -49,12 +51,14 @@ Ouroborus {
 			var lpf=In.kr(lpfBus);//bus2
 			var hpf=In.kr(hpfBus);//bus2
 			var frames=BufFrames.ir(bufnum);
-
+			var duration=BufDur.ir(bufnum);
+			var durationRate=duration;
 
 			rate = BufRateScale.ir(bufnum) * bpm_target / bpm_sample;
 			rate = rate*LinSelectX.kr(EnvGen.kr(Env.new([0,1,1,0],[0.2,2,1]),gate:Changed.kr(rateIn)),[1,rateIn]);
 			// scratch effect
 			rate = SelectX.kr(scratch,[rate,LFTri.kr(bpm_target/60*scratchrate)],wrap:0);
+			durationRate=durationRate/rate;
 			pos = Phasor.ar(
 				trig:t_trig,
 				rate:rate,
@@ -62,6 +66,8 @@ Ouroborus {
 				end:((sampleEnd*(rate>0))+(sampleStart*(rate<0)))*frames,
 				resetPos:samplePos*frames
 			);
+			pos = Select.ar(samplePosBus>1.neg,[pos,In.ar(samplePosBus).mod(durationRate)/durationRate*frames]);
+
 			timestretchPos = Phasor.ar(
 				trig:t_trig,
 				rate:rate/timestretch_slow,
@@ -73,7 +79,7 @@ Ouroborus {
 				trig:t_trig,
 				rate:rate,
 				start:timestretchPos,
-				end:timestretchPos+((60/bpm_target/timestretch_beats)/BufDur.kr(bufnum)*frames),
+				end:timestretchPos+((60/bpm_target/timestretch_beats)/duration*frames),
 				resetPos:timestretchPos,
 			);
 
@@ -109,6 +115,15 @@ Ouroborus {
 			Out.ar(out,snd);
 		}).send(server);
 
+		SynthDef("defMainline",{
+			arg out,sr=44100;
+			Out.ar(out,Phasor.ar(1,1.0/sr,0.0,1000.0));
+		}).send(server);
+
+		server.sync;
+
+		busMainline=Bus.audio(server,1);
+		synMainline=Synth.head(server,"defMainline",[\out,busMainline.index,\sr,server.sampleRate]);
 	}
 
 	recPrime {
@@ -119,7 +134,7 @@ Ouroborus {
 			if (mapPlay.at(argID).isNil,{
 				mapPlay.put(argID,OuroborusPlay.new(server,busOut));
 			});
-			mapPlay.at(argID).playNew(buf,(SystemClock.seconds-startTime+0.075).mod(seconds)/seconds,0.0,1.0);
+			mapPlay.at(argID).playNew(buf,busMainline.postln,synMainline);
 		});
 	}
 
@@ -131,14 +146,14 @@ Ouroborus {
 			if (mapPlay.at(argID).isNil,{
 				mapPlay.put(argID,OuroborusPlay.new(server,busOut));
 			});
-			mapPlay.at(argID).playNew(buf,(SystemClock.seconds-startTime+0.075).mod(seconds)/seconds,0.0,1.0);
+			mapPlay.at(argID).playNew(buf,busMainline);
 		});
 	}
 
-	play {
-		arg argID,samplePos,sampleStart,sampleEnd;
-		mapPlay.at(argID).play(samplePos,sampleStart,sampleEnd);
-	}
+	// play {
+	// 	arg argID,samplePos,sampleStart,sampleEnd;
+	// 	mapPlay.at(argID).play(samplePos,sampleStart,sampleEnd);
+	// }
 
 	setParam {
 		arg argID, key, val;
@@ -149,6 +164,7 @@ Ouroborus {
 
 	free {
 		synRec.free;
+		synMainline.free;
 		mapPlay.keysValuesDo({arg key,val;
 			val.free;
 		});
