@@ -9,25 +9,23 @@ OuroborusRec {
 	var valLoopSeconds=4;
 	var valStartTime=0;
 	var fnXFader;
-	var <fnAction;
 
 	*new {
-		arg argServer,argBusOut,argAction;
-		^super.new.init(argServer,argBusOut,argAction);
+		arg argServer,argBusOut;
+		^super.new.init(argServer,argBusOut);
 	}
 
 	init {
-		arg argServer,argBusOut,argAction;
+		arg argServer,argBusOut;
 		server=argServer;
 		busOut=argBusOut;
-		fnAction=argAction;
 		valId=1000000.rand;
 
 		SynthDef("defRecordTrigger",{
 			arg threshold=(-50), volume=0.0, id=0;
 			var input,onset;
 			input = Mix.new(SoundIn.ar([0, 1]))*EnvGen.ar(Env.new([0,1],[0.2]))*10;
-			onset = Trig.kr(Coyote.kr(input,fastLag:0.05,fastMul:0.9,thresh:threshold.dbamp,minDur:0.1));
+			onset = Trig.kr(Coyote.kr(input,fastLag:0.05,fastMul:0.9,thresh:threshold.dbamp,minDur:0.05));
 			SendTrig.kr(onset,id,1.0);
 			Silent.ar();
 		}).send(server);
@@ -76,7 +74,6 @@ OuroborusRec {
 			if (msg[2].asInteger==valId.asInteger,{
 				if (msg[3].asInteger==1,{
 					"recording start from prime".postln;
-					valStartTime=SystemClock.seconds;
 					if (synPrime.notNil,{
 						synPrime.free;
 						synPrime=nil;
@@ -84,7 +81,7 @@ OuroborusRec {
 					if (synRecord.notNil,{
 						synRecord.set(\t_trig,1,\run,1,\loop,0);
 					});
-
+					valStartTime=SystemClock.seconds;
 				});
 			});
 		},'/tr',server.addr);
@@ -92,7 +89,7 @@ OuroborusRec {
 
 	// recStart allocates and immediately starts a new recording
 	recStart {
-		arg seconds,xfade;
+		arg seconds,xfade,action;
 		valLoopSeconds=seconds;
 		valLoopFade=xfade;
 		Buffer.alloc(server,server.sampleRate*(seconds+valLoopFade),2,{
@@ -108,10 +105,10 @@ OuroborusRec {
 					fnXFader.value(buf1,valLoopFade,-2,action:{
 						arg buf2;
 						("recStart done with buffer"+buf1+"and made"+buf2).postln;
-						fnAction.value(buf2,valStartTime);
+						action.value(buf2,valStartTime);
 					});
 				},{
-					fnAction.value(buf1,valStartTime);
+					action.value(buf1,valStartTime);
 				});
 			});
 			NodeWatcher.register(synRecord);
@@ -120,7 +117,7 @@ OuroborusRec {
 
 	// recPrime allocates and primes a new recording
 	recPrime {
-		arg seconds,xfade;
+		arg seconds,xfade,action;
 		valLoopFade=xfade;
 		valLoopSeconds=seconds;
 		Buffer.alloc(server,server.sampleRate*(seconds+valLoopFade),2,{
@@ -133,10 +130,10 @@ OuroborusRec {
 					fnXFader.value(buf1,valLoopFade,-2,action:{
 						arg buf2;
 						("done with buffer"+buf1+"and made"+buf2).postln;
-						fnAction.value(buf2,valStartTime);
+						action.value(buf2,valStartTime);
 					});
 				},{
-					fnAction.value(buf1,valStartTime);
+					action.value(buf1,valStartTime);
 				});
 			});
 			NodeWatcher.register(synRecord);

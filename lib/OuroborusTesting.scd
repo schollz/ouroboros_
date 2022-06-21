@@ -1,10 +1,47 @@
+(
+s.options.outDevice = "Speaker/HP (Realtek High Defini";
+s.waitForBoot{
+	"ready".postln;
+	o=Ouroborus.new(Server.default,0);
+	s.sync;
+	o.recStart(1,60/90*4,0.001);
+})
+SystemClock.seconds
+o.setParam(2,"amp",10);
+o.recPrime(2,2,0.2);
+o.recPrime(3,8,0.2);
+o.setParam(3,"timestretch",0)
+
+o.recStart(2,2,0.2);
+o.recStart(3,8,0.2);
+
+o.play(1,0.0,0,1.0);
+o.play(2,0.0,0,1.0);
+o.play(3,0.0,0,1.0);
+
 (s.waitForBoot{
 	"ready".postln;
-	m=OuroborusRec(Server.default,0,{ arg buf,startTime; [buf,startTime].postln; });
+	m=OuroborusPlay.new(Server.default,0);
+	n=OuroborusPlay.new(Server.default,0);
+b = Buffer.read(s, Platform.resourceDir +/+ "sounds/a11wlk01.wav"); // remember to free the buffer later.
+})
+m.play(b,0.0,0.0,1.0);
+n.play(b,0.0,0.0,1.0);
+m.mapBus.at(\bitcrush).set(0)
+n.mapBus.at(\timestretch).set(1)
+n.mapBus.at(\amp).set(-60)
+
+
+(s.waitForBoot{
+	"ready".postln;
+	m=OuroborusRec.new(Server.default,0,{ arg buf,startTime; [buf,startTime].postln; });
 })
 
-
-m.recStart(2.0,0.2);
+(
+~startTime=SystemClock.seconds;
+m.recStart(8.0,0.2);
+)
+(SystemClock.seconds-~startTime).mod(8)/8
 
 m.recPrime(4.0,0.2);
 
@@ -13,6 +50,7 @@ m.recPrime(4.0,0.2);
 }.play)
 a.free;
 
+(1..2).do({ arg i; i.postln})
 
 m.bufLoop.plot
 
@@ -25,3 +63,15 @@ SystemClock.seconds
 s.seconds
 
 Clock.seconds
+
+
+c=Bus.control(s,1)
+c.value=2;
+c.set(5);
+c.get({arg val; val.postln;})
+
+({
+	var imp=Dust.kr(4);
+	EnvGen.ar(Env.new([0,1],[0.2],-2))*EnvGen.ar(Env.new([1,0],[0.2],-2),imp,doneAction:2)
+}.plot(1)
+)
